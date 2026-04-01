@@ -1,0 +1,455 @@
+<?php
+// Enhanced security headers
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('X-XSS-Protection: 1; mode=block');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+
+// Start session with secure settings
+ini_set('session.cookie_httponly', 1);
+ini_set('session.cookie_secure', 1);
+ini_set('session.use_strict_mode', 1);
+session_start();
+
+// Include session management functions
+include_once('includes/session.php');
+
+// Check if user is already logged in
+if (isset($_SESSION['username']) && !empty($_SESSION['username']) && 
+    isset($_SESSION['role']) && in_array($_SESSION['role'], ['user', 'admin', 'superadmin'])) {
+    header('Location: /index_dashboard');
+    exit();
+}
+
+include_once('includes/connect.php');
+
+$logout_message = null;
+if (isset($_SESSION['logout_message'])) {
+    $logout_message = $_SESSION['logout_message'];
+    unset($_SESSION['logout_message']);
+}
+if (!$logout_message && isset($_GET['logout'])) {
+    $logout_message = $_GET['logout'];
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, height=device-height, viewport-fit=cover">
+  <meta name="description" content="CSC RO VIII Integrated Management Information System — Official Login Portal">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#1a56db">
+
+  <link href="assets/img/favicon.png" rel="icon" type="image/png">
+  <link href="assets/img/favicon.png" rel="apple-touch-icon">
+
+  <title>Login — CSC RO VIII IMIS</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+  <link href="assets/css/preloader.css" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/imis_new.css">
+</head>
+
+<body class="my-login-page">
+
+  <div id="preloader" aria-hidden="true"></div>
+  <img class="wave d-none d-md-block" src="login_img/wave.png" alt="" aria-hidden="true">
+
+  <div class="container-fluid">
+    <div class="row min-vh-100">
+
+      <!-- ═══════════════════
+           LEFT PANEL
+      ════════════════════ -->
+      <div class="col-md-6 d-none d-md-flex left-panel" aria-hidden="true">
+
+        <img
+          src="login_img/bg.png"
+          class="left-panel__illustration"
+          alt=""
+        >
+
+        <div class="left-panel__info">
+          <p class="left-panel__tagline">Civil Service Commission — Region VIII</p>
+          <h2 class="left-panel__title">Integrated Management<br>Information System</h2>
+          <p class="left-panel__desc">
+            A centralized digital platform unifying human resource management,
+            examination services, client assistance, financial operations,
+            and technical support across all divisions.
+          </p>
+          <div>
+            <span class="system-status" role="status" aria-live="polite">
+              <span class="system-status__dot" aria-hidden="true"></span>
+              All Systems Operational
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ═══════════════════
+           LOGIN FORM
+      ════════════════════ -->
+      <div class="col-12 col-md-6 d-flex align-items-center justify-content-center px-3 py-4">
+
+        <div
+          class="login-card w-100"
+          id="loginCard"
+          role="main"
+          aria-label="IMIS Login"
+        >
+          <form
+            id="loginForm"
+            novalidate
+            autocomplete="on"
+            aria-label="Sign in to CSC RO VIII IMIS"
+          >
+            <input type="hidden" id="loginMode" name="login_mode" value="admin">
+
+            <!-- Official banner -->
+            <div class="official-banner" id="officialBanner" role="note">
+              <i class="bi bi-shield-fill-check" aria-hidden="true"></i>
+              Integrated Management Information System
+            </div>
+
+            <!-- Logos -->
+            <div class="logo-container text-center">
+              <div class="logo-container__logos">
+                <img
+                  src="login_img/csclogo.png"
+                  class="logo-csc"
+                  alt="Civil Service Commission"
+                >
+                <div class="logo-container__divider" aria-hidden="true"></div>
+                <img
+                  src="login_img/CSC-IMIS.png"
+                  id="toggleTriggerImg"
+                  class="logo-imis"
+                  alt="CSC IMIS"
+                  role="button"
+                  tabindex="0"
+                  title="Toggle system access options"
+                  aria-expanded="false"
+                  aria-controls="toggleContainer"
+                  aria-label="Toggle system access options"
+                >
+              </div>
+
+              <p class="modern-heading" id="welcomeText">
+                Sign in to access the IMIS Portal
+              </p>
+
+              <div class="mb-3">
+                <span class="role-badge" id="loginModeBadge" role="status" aria-live="polite">
+                  <span class="role-badge__dot" aria-hidden="true"></span>
+                  <span id="badgeText">CSC RO VIII Employee</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- Privacy Notice -->
+            <div class="privacy-notice" role="note" aria-label="Data Privacy Act notice">
+              <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+              <span>
+                By signing in you acknowledge this is an official government system
+                protected under <strong>RA 10173</strong>.
+                <a href="privacy_policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+              </span>
+            </div>
+
+            <!-- Lockout Warning -->
+            <div
+              class="lockout-warning"
+              id="lockoutWarning"
+              role="alert"
+              aria-live="assertive"
+              aria-atomic="true"
+            >
+              <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+              <span id="lockoutText">Multiple failed attempts detected.</span>
+            </div>
+
+            <!-- Username -->
+            <div class="field-group">
+              <label class="field-label" for="username">Username</label>
+              <div class="field-input-wrap">
+                <i class="bi bi-person field-icon" aria-hidden="true"></i>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="username"
+                  name="username"
+                  placeholder="Enter your username"
+                  autocomplete="username"
+                  spellcheck="false"
+                  autocapitalize="none"
+                  required
+                  aria-required="true"
+                  aria-describedby="username-err"
+                  autofocus
+                >
+              </div>
+              <span id="username-err" class="visually-hidden" role="alert"></span>
+            </div>
+
+            <!-- Password -->
+            <div class="field-group">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="field-label mb-0" for="password">Password</label>
+                <a href="forgot_pw" class="forgot-link" id="forgotLink">Forgot Password?</a>
+              </div>
+              <div class="field-input-wrap field-input-wrap--password">
+                <i class="bi bi-lock field-icon" aria-hidden="true"></i>
+                <input
+                  type="password"
+                  class="form-control"
+                  id="password"
+                  name="password"
+                  placeholder="Enter your password"
+                  autocomplete="current-password"
+                  required
+                  aria-required="true"
+                  aria-describedby="password-err"
+                >
+                <button
+                  type="button"
+                  class="password-toggle-btn"
+                  id="togglePassword"
+                  aria-label="Show password"
+                  aria-pressed="false"
+                >
+                  <i class="bi bi-eye-slash" id="togglePasswordIcon" aria-hidden="true"></i>
+                </button>
+              </div>
+              <span id="password-err" class="visually-hidden" role="alert"></span>
+            </div>
+
+            <!-- CAPTCHA -->
+            <div
+              class="captcha-section"
+              id="captchaSection"
+              aria-labelledby="captchaLabel"
+            >
+              <div class="captcha-header">
+                <i class="bi bi-shield-lock captcha-header__icon" aria-hidden="true"></i>
+                <span class="captcha-header__label" id="captchaLabel">Security Verification</span>
+              </div>
+
+              <div class="captcha-row">
+                <div class="field-group mb-0">
+                  <div class="field-input-wrap">
+                    <i class="bi bi-keyboard field-icon" aria-hidden="true"></i>
+                    <input
+                      type="tel"
+                      class="form-control"
+                      id="captcha"
+                      name="captcha"
+                      placeholder="4-digit code"
+                      maxlength="4"
+                      inputmode="numeric"
+                      pattern="[0-9]{4}"
+                      autocomplete="off"
+                      required
+                      aria-required="true"
+                      aria-describedby="captchaValue captcha-hint"
+                      aria-label="Enter the 4-digit CAPTCHA code shown"
+                    >
+                  </div>
+                  <span id="captcha-hint" class="visually-hidden">
+                    Enter the 4-digit number shown to the right. Click refresh for a new code.
+                  </span>
+                </div>
+
+                <div
+                  class="captcha-display"
+                  id="generatedCaptcha"
+                  aria-label="CAPTCHA display"
+                  aria-describedby="captcha-hint"
+                >
+                  <span
+                    id="captchaValue"
+                    aria-live="polite"
+                    aria-atomic="true"
+                  >····</span>
+                  <button
+                    type="button"
+                    class="captcha-refresh-btn"
+                    id="refreshCaptcha"
+                    aria-label="Refresh — generate a new CAPTCHA code"
+                    title="Refresh CAPTCHA"
+                  >
+                    <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sign In Button -->
+            <button
+              type="submit"
+              class="modern-btn"
+              id="loginBtn"
+            >
+              <i class="bi bi-arrow-right-circle" id="btnIcon" aria-hidden="true"></i>
+              <span id="btnText">Sign In</span>
+              <span
+                id="btnSpinner"
+                class="spinner-border spinner-border-sm d-none"
+                role="status"
+                aria-label="Signing in, please wait"
+              ></span>
+            </button>
+
+            <!-- Superadmin Toggle -->
+            <div id="toggleContainer" aria-hidden="true">
+              <div class="modern-switch d-flex justify-content-between align-items-center" id="toggleSwitch">
+                <label class="form-check-label mb-0" for="toggleModeBtn" id="toggleLabel">
+                  Switch to Superadmin
+                </label>
+                <div class="form-check form-switch mb-0">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="toggleModeBtn"
+                    role="switch"
+                    aria-checked="false"
+                    aria-label="Enable Superadmin login mode"
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- Secure Strip -->
+            <div class="secure-strip">
+              <i class="bi bi-lock-fill" aria-hidden="true"></i>
+              <span>Secured Connection &mdash; Data encrypted in transit</span>
+            </div>
+
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="login-footer" role="contentinfo">
+    <span>&copy; <?= date('Y') ?> Civil Service Commission &mdash; Regional Office VIII</span>
+    <nav class="login-footer__links" aria-label="Footer links">
+      <a href="privacy_policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+      <span class="login-footer__sep" aria-hidden="true">|</span>
+      <a href="mailto:ro8@csc.gov.ph">Contact Support</a>
+      <span class="login-footer__sep" aria-hidden="true">|</span>
+      <span aria-label="System version">IMIS v2.0</span>
+    </nav>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="js/main.js"></script>
+  <script src="js/preloader.js"></script>
+  <script src="LumaFramework/LumaFramework.js"></script>
+  <script src="auth.js"></script>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+
+    // ── PASSWORD TOGGLE ──
+    const toggleBtn  = document.getElementById('togglePassword');
+    const toggleIcon = document.getElementById('togglePasswordIcon');
+    const pwField    = document.getElementById('password');
+
+    if (toggleBtn && pwField) {
+      toggleBtn.addEventListener('click', function () {
+        const show = pwField.type === 'password';
+        pwField.type = show ? 'text' : 'password';
+        toggleIcon.classList.toggle('bi-eye-slash', !show);
+        toggleIcon.classList.toggle('bi-eye', show);
+        this.setAttribute('aria-pressed', String(show));
+        this.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      });
+    }
+
+    // ── LOGO CLICK → SUPERADMIN TOGGLE ──
+    const triggerImg      = document.getElementById('toggleTriggerImg');
+    const toggleContainer = document.getElementById('toggleContainer');
+
+    if (triggerImg && toggleContainer) {
+      const openToggle = () => {
+        const open = toggleContainer.classList.toggle('show');
+        toggleContainer.setAttribute('aria-hidden', String(!open));
+        triggerImg.setAttribute('aria-expanded', String(open));
+      };
+      triggerImg.addEventListener('click', openToggle);
+      triggerImg.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openToggle(); }
+      });
+    }
+
+    // ── SUPERADMIN MODE THEME SWITCH ──
+    $('#toggleModeBtn').on('change', function () {
+      const isDark = $(this).is(':checked');
+      $(this).attr('aria-checked', String(isDark));
+
+      $('#loginCard').toggleClass('login-card-dark', isDark);
+      $('#loginModeBadge').toggleClass('role-badge-dark', isDark);
+      $('#badgeText').text(isDark ? 'Superadmin Access' : 'CSC RO VIII Employee');
+      $('#captchaSection').toggleClass('captcha-section-dark', isDark);
+      $('#toggleSwitch').toggleClass('modern-switch-dark', isDark);
+      $('#loginBtn').toggleClass('modern-btn-dark', isDark);
+      $('#loginMode').val(isDark ? 'superadmin' : 'admin');
+      $('#toggleLabel').text(isDark ? 'Switch back to Employee Login' : 'Switch to Superadmin');
+      $('#toggleTriggerImg').attr('src', isDark
+        ? 'login_img/CSC-IMIS-dark.png'
+        : 'login_img/CSC-IMIS.png'
+      );
+    });
+
+    // ── LOGOUT ALERTS ──
+    const urlParams   = new URLSearchParams(window.location.search);
+    const logoutParam = urlParams.get('logout');
+
+    const clearParam = () => {
+      const url = new URL(window.location);
+      url.searchParams.delete('logout');
+      window.history.replaceState({}, document.title, url.toString());
+    };
+
+    const focus = () => document.getElementById('username')?.focus();
+
+    if (logoutParam === 'idle') {
+      Swal.fire({
+        title: 'Session Expired',
+        html: 'You were automatically signed out due to inactivity.<br><br>Please sign in again to continue.',
+        icon: 'info',
+        confirmButtonText: '<i class="bi bi-box-arrow-in-right me-1"></i> OK',
+        allowOutsideClick: false
+      }).then(() => { clearParam(); focus(); });
+
+    } else if (logoutParam === 'manual') {
+      Swal.fire({
+        title: 'Signed Out',
+        text: 'You have been successfully signed out.',
+        icon: 'success',
+        timer: 2500,
+        timerProgressBar: true
+      }).then(() => { clearParam(); focus(); });
+
+    } else {
+      focus();
+    }
+
+  });
+  </script>
+
+</body>
+</html>
